@@ -119,9 +119,9 @@ def temporarily_shutdown_domain(dom):
 
 
 def wait(func, timeout):
-    t0 = time.time()
+    t0 = time.monotonic()
     while not func():
-        t1 = time.time()
+        t1 = time.monotonic()
         elapsed = t1 - t0
         if elapsed >= timeout:
             raise TimeoutError
