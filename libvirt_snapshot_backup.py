@@ -128,16 +128,30 @@ DEFAULT_SHUTDOWN_TIMEOUT_SEC = 30
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--libvirt-uri", type=non_empty_str, default=DEFAULT_LIBVIRT_URI
+        "--libvirt-uri",
+        type=non_empty_str,
+        default=DEFAULT_LIBVIRT_URI,
     )
     parser.add_argument(
         "--shutdown-timeout-sec",
         type=positive_int,
         default=DEFAULT_SHUTDOWN_TIMEOUT_SEC,
     )
-    parser.add_argument("--domain-name", type=non_empty_str)
-    parser.add_argument("--snapshot-name", type=non_empty_str)
-    parser.add_argument("--snapshot-count", type=positive_int)
+    parser.add_argument(
+        "--domain-name",
+        type=non_empty_str,
+        required=True,
+    )
+    parser.add_argument(
+        "--snapshot-name",
+        type=non_empty_str,
+        required=True,
+    )
+    parser.add_argument(
+        "--snapshot-count",
+        type=positive_int,
+        required=True,
+    )
     return parser.parse_args()
 
 
