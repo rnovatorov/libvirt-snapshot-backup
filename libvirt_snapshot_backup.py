@@ -1,3 +1,4 @@
+import argparse
 import contextlib
 import time
 import xml.etree.ElementTree as xml_element_tree
@@ -5,21 +6,17 @@ import xml.etree.ElementTree as xml_element_tree
 import libvirt
 
 
-DOMAIN_NAME = "win10"
-SNAPSHOT_PREFIX = "bak_"
-SNAPSHOT_COUNT = 3
-
-
 def main():
-    with Connection.system() as conn:
-        dom = conn.domain_by_name(DOMAIN_NAME)
-        create_snapshot(dom, SNAPSHOT_PREFIX)
-        rotate_snapshots(dom, SNAPSHOT_PREFIX, SNAPSHOT_COUNT)
+    args = parse_args()
+    with Connection.open(args.libvirt_uri) as conn:
+        dom = conn.domain_by_name(args.domain_name)
+        create_snapshot(dom, args.snapshot_name, args.shutdown_timeout)
+        rotate_snapshots(dom, args.snapshot_name, args.snapshot_count)
 
 
-def create_snapshot(dom, prefix):
-    with temporarily_shutdown_domain(dom):
-        name = f"{prefix}{int(time.time())}"
+def create_snapshot(dom, name, shutdown_timeout):
+    with temporarily_shutdown_domain(dom, shutdown_timeout):
+        name = f"{name}_{int(time.time())}"
         dom.create_snapshot(name, atomic=True)
 
 
@@ -49,10 +46,6 @@ class Connection:
         return Domain(dom=dom)
 
     @classmethod
-    def system(cls):
-        return cls.open("qemu:///system")
-
-    @classmethod
     def open(cls, uri):
         conn = libvirt.open(uri)
         return Connection(conn=conn)
@@ -70,7 +63,7 @@ class Domain:
         (state, _) = self._dom.state()
         return state == libvirt.VIR_DOMAIN_SHUTOFF
 
-    def down(self, timeout=30):
+    def down(self, timeout):
         if not self.is_up():
             return
         self._dom.shutdown()
@@ -110,8 +103,8 @@ class Snapshot:
 
 
 @contextlib.contextmanager
-def temporarily_shutdown_domain(dom):
-    dom.down()
+def temporarily_shutdown_domain(dom, shutdown_timeout):
+    dom.down(timeout=shutdown_timeout)
     try:
         yield
     finally:
@@ -126,6 +119,40 @@ def wait(func, timeout):
         if elapsed >= timeout:
             raise TimeoutError
         time.sleep(1)
+
+
+DEFAULT_LIBVIRT_URI = "qemu:///system"
+DEFAULT_SHUTDOWN_TIMEOUT_SEC = 30
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--libvirt-uri", type=non_empty_str, default=DEFAULT_LIBVIRT_URI
+    )
+    parser.add_argument(
+        "--shutdown-timeout-sec",
+        type=positive_int,
+        default=DEFAULT_SHUTDOWN_TIMEOUT_SEC,
+    )
+    parser.add_argument("--domain-name", type=non_empty_str)
+    parser.add_argument("--snapshot-name", type=non_empty_str)
+    parser.add_argument("--snapshot-count", type=positive_int)
+    return parser.parse_args()
+
+
+def non_empty_str(v):
+    s = str(v)
+    if not s:
+        raise ValueError("must not be empty")
+    return s
+
+
+def positive_int(v):
+    i = int(v)
+    if i <= 0:
+        raise ValueError("must be positive")
+    return i
 
 
 if __name__ == "__main__":
