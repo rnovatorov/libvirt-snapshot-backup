@@ -124,7 +124,7 @@ def wait(func, timeout):
 
 
 DEFAULT_LIBVIRT_URI = "qemu:///system"
-DEFAULT_SHUTDOWN_TIMEOUT_SEC = 30
+DEFAULT_SHUTDOWN_TIMEOUT = 30
 
 
 def parse_args():
@@ -135,9 +135,9 @@ def parse_args():
         default=DEFAULT_LIBVIRT_URI,
     )
     parser.add_argument(
-        "--shutdown-timeout-sec",
+        "--shutdown-timeout",
         type=positive_int,
-        default=DEFAULT_SHUTDOWN_TIMEOUT_SEC,
+        default=DEFAULT_SHUTDOWN_TIMEOUT,
     )
     parser.add_argument(
         "--domain-name",
