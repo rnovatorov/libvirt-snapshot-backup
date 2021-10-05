@@ -1,0 +1,14 @@
+[Unit]
+Description=Run libvirt-snapshot-backup daily
+
+[Service]
+Type=oneshot
+ExecStart=/opt/libvirt-snapshot-backup/libvirt_snapshot_backup.py \
+	--libvirt-uri "qemu:///system" \
+	--shutdown-timeout 60 \
+	--domain-name debian11 \
+	--snapshot-name daily \
+	--snapshot-count 7
+
+[Install]
+WantedBy=multi-user.target
