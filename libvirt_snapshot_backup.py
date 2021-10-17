@@ -12,14 +12,14 @@ def main():
     args = parse_args()
     with Connection.open(args.libvirt_uri) as conn:
         dom = conn.domain_by_name(args.domain_name)
-        create_snapshot(dom, args.snapshot_name, args.shutdown_timeout)
+        with temporarily_shutdown_domain(dom, args.shutdown_timeout):
+            create_snapshot(dom, args.snapshot_name)
         rotate_snapshots(dom, args.snapshot_name, args.snapshot_count)
 
 
-def create_snapshot(dom, name, shutdown_timeout):
-    with temporarily_shutdown_domain(dom, shutdown_timeout):
-        name = f"{name}_{int(time.time())}"
-        dom.create_snapshot(name, atomic=True)
+def create_snapshot(dom, name):
+    name = f"{name}_{int(time.time())}"
+    dom.create_snapshot(name, atomic=True)
 
 
 def rotate_snapshots(dom, prefix, count):
