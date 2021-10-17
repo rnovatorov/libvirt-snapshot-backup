@@ -8,7 +8,8 @@ ExecStart=/opt/libvirt-snapshot-backup/libvirt_snapshot_backup.py \
 	--shutdown-timeout 60 \
 	--domain-name debian11 \
 	--snapshot-name daily \
-	--snapshot-count 7
+	--snapshot-count 7 \
+	--backup-dst /backup
 
 [Install]
 WantedBy=multi-user.target

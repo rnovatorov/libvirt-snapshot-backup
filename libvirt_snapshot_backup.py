@@ -2,6 +2,8 @@
 
 import argparse
 import contextlib
+import pathlib
+import shutil
 import time
 import xml.etree.ElementTree as xml_element_tree
 
@@ -14,12 +16,20 @@ def main():
         dom = conn.domain_by_name(args.domain_name)
         with temporarily_shutdown_domain(dom, args.shutdown_timeout):
             create_snapshot(dom, args.snapshot_name)
+            backup_disk_image(dom, args.backup_dst)
         rotate_snapshots(dom, args.snapshot_name, args.snapshot_count)
 
 
 def create_snapshot(dom, name):
     name = f"{name}_{int(time.time())}"
     dom.create_snapshot(name, atomic=True)
+
+
+def backup_disk_image(dom, dst):
+    if dst is None:
+        return
+    src = dom.disk_image_path()
+    shutil.copy(src, dst)
 
 
 def rotate_snapshots(dom, prefix, count):
@@ -56,6 +66,15 @@ class Connection:
 class Domain:
     def __init__(self, dom):
         self._dom = dom
+        self._desc = xml_element_tree.fromstring(self._dom.XMLDesc())
+
+    def disk_image_path(self):
+        disks = self._desc.findall("./devices/disk[@type='file'][@device='disk']")
+        assert len(disks) > 0
+        if len(disks) > 1:
+            raise NotImplementedError
+        src = disks[0].find("./source")
+        return pathlib.Path(src.attrib["file"])
 
     def is_up(self):
         (state, _) = self._dom.state()
@@ -153,6 +172,10 @@ def parse_args():
         "--snapshot-count",
         type=positive_int,
         required=True,
+    )
+    parser.add_argument(
+        "--backup-dst",
+        type=str,
     )
     return parser.parse_args()
 
