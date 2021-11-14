@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import fcntl
 import pathlib
 import shutil
 import time
@@ -14,10 +15,11 @@ def main():
     args = parse_args()
     with Connection.open(args.libvirt_uri) as conn:
         dom = conn.domain_by_name(args.domain_name)
-        with temporarily_shutdown_domain(dom, args.shutdown_timeout):
-            create_snapshot(dom, args.snapshot_name)
-            backup_disk_image(dom, args.backup_dst)
-        rotate_snapshots(dom, args.snapshot_name, args.snapshot_count)
+        with lock_domain(args.domain_name, args.lock_dir):
+            with temporarily_shutdown_domain(dom, args.shutdown_timeout):
+                create_snapshot(dom, args.snapshot_name)
+                backup_disk_image(dom, args.backup_dst)
+            rotate_snapshots(dom, args.snapshot_name, args.snapshot_count)
 
 
 def create_snapshot(dom, name):
@@ -124,6 +126,18 @@ class Snapshot:
 
 
 @contextlib.contextmanager
+def lock_domain(name, lock_dir):
+    lock_dir.mkdir(exist_ok=True)
+    lock = lock_dir / f"{name}.lock"
+    with lock.open("w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+@contextlib.contextmanager
 def temporarily_shutdown_domain(dom, shutdown_timeout):
     dom.down(timeout=shutdown_timeout)
     try:
@@ -144,6 +158,7 @@ def wait(func, timeout):
 
 DEFAULT_LIBVIRT_URI = "qemu:///system"
 DEFAULT_SHUTDOWN_TIMEOUT = 30
+DEFAULT_LOCK_DIR = "/var/run/libvirt-snapshot-backup"
 
 
 def parse_args():
@@ -176,6 +191,11 @@ def parse_args():
     parser.add_argument(
         "--backup-dst",
         type=str,
+    )
+    parser.add_argument(
+        "--lock-dir",
+        type=pathlib.Path,
+        default=DEFAULT_LOCK_DIR,
     )
     return parser.parse_args()
 
